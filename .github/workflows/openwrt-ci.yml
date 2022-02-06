@@ -1,29 +1,30 @@
-#
-# This is free software, lisence use MIT.
-# 
-# Copyright (C) 2019 P3TERX <https://p3terx.com>
-# Copyright (C) 2019 KFERMercer <KFER.Mercer@gmail.com>
 # 
 # <https://github.com/KFERMercer/OpenWrt-CI>
-# 
-
+#
+# Copyright (C) 2019 P3TERX
+#
+# Copyright (C) 2020 KFERMercer
+#
 name: OpenWrt-CI
 
 on:
   schedule:
-    - cron: 0 20 * * *
-  push:
-    tags:
-      - '*'
+    - cron: 0 8 10 * *
+  release:
+    types: [published]
 
 jobs:
 
   build_openwrt:
 
-    name: Build OpenWrt and release
-    runs-on: ubuntu-18.04
+    name: Build OpenWrt firmware
+
+    runs-on: ubuntu-latest
+
+    if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -34,10 +35,10 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           docker rmi `docker images -q`
-          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d
-          sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* mysql* php*
+          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
+          sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
           sudo -E apt-get update
-          sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs gcc-multilib g++-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler antlr3 gperf
+          sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs gcc-multilib g++-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler antlr3 gperf swig
           sudo -E apt-get -y autoremove --purge
           sudo -E apt-get clean
 
@@ -45,11 +46,107 @@ jobs:
 
       - name: Update feeds
         run: |
+          sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Generate configuration file
-        run: make defconfig
+        run: |
+          rm -f ./.config*
+          touch ./.config
+          # Gl.inet usb-150固件配置:
+          cat >> .config <<EOF
+          CONFIG_TARGET_ar71xx=y
+          CONFIG_TARGET_ar71xx_generic=y
+          CONFIG_TARGET_ar71xx_generic_DEVICE_tl-wdr6500-v6=y
+          CONFIG_KERNEL_SWAP=y
+          # CONFIG_PACKAGE_adbyby is not set
+          # CONFIG_PACKAGE_ath10k-firmware-qca9888 is not set
+          CONFIG_PACKAGE_ath10k-firmware-qca9888-ct=y
+          # CONFIG_PACKAGE_coreutils is not set
+          # CONFIG_PACKAGE_ddns-scripts_aliyun is not set
+          # CONFIG_PACKAGE_ddns-scripts_dnspod is not set
+          # CONFIG_PACKAGE_dns2socks is not set
+          # CONFIG_PACKAGE_etherwake is not set
+          # CONFIG_PACKAGE_ip-full is not set
+          CONFIG_PACKAGE_ip-tiny=y
+          # CONFIG_PACKAGE_ipset is not set
+          # CONFIG_PACKAGE_iptables-mod-tproxy is not set
+          # CONFIG_PACKAGE_kmod-ath10k is not set
+          CONFIG_PACKAGE_kmod-ath10k-ct-smallbuffers=y
+          # CONFIG_PACKAGE_kmod-fast-classifier is not set
+          CONFIG_PACKAGE_kmod-hwmon-core=y
+          # CONFIG_PACKAGE_kmod-ip6tables is not set
+          # CONFIG_PACKAGE_kmod-ipt-tproxy is not set
+          CONFIG_PACKAGE_kmod-ledtrig-netdev=y
+          CONFIG_PACKAGE_kmod-lib-lz4=y
+          CONFIG_PACKAGE_kmod-lib-lzo=y
+          # CONFIG_PACKAGE_kmod-nf-ipt6 is not set
+          # CONFIG_PACKAGE_kmod-nf-reject6 is not set
+          # CONFIG_PACKAGE_kmod-shortcut-fe is not set
+          CONFIG_PACKAGE_kmod-tun=y
+          CONFIG_PACKAGE_kmod-zram=y
+          CONFIG_PACKAGE_libblkid=y
+          # CONFIG_PACKAGE_libelf is not set
+          # CONFIG_PACKAGE_libev is not set
+          # CONFIG_PACKAGE_libipset is not set
+          # CONFIG_PACKAGE_libmbedtls is not set
+          CONFIG_PACKAGE_libminiupnpc=y
+          # CONFIG_PACKAGE_libmnl is not set
+          CONFIG_PACKAGE_libnatpmp=y
+          # CONFIG_PACKAGE_libnet-1.2.x is not set
+          # CONFIG_PACKAGE_libpcap is not set
+          # CONFIG_PACKAGE_libsodium is not set
+          CONFIG_PACKAGE_libstdcpp=y
+          # CONFIG_PACKAGE_luci-app-accesscontrol is not set
+          # CONFIG_PACKAGE_luci-app-adbyby-plus is not set
+          # CONFIG_PACKAGE_luci-app-arpbind is not set
+          # CONFIG_PACKAGE_luci-app-ddns is not set
+          # CONFIG_PACKAGE_luci-app-filetransfer is not set
+          # CONFIG_PACKAGE_luci-app-nlbwmon is not set
+          # CONFIG_PACKAGE_luci-app-sfe is not set
+          # CONFIG_PACKAGE_luci-app-ssr-plus is not set
+          # CONFIG_PACKAGE_luci-app-unblockmusic is not set
+          # CONFIG_PACKAGE_luci-app-upnp is not set
+          # CONFIG_PACKAGE_luci-app-vlmcsd is not set
+          # CONFIG_PACKAGE_luci-app-vsftpd is not set
+          # CONFIG_PACKAGE_luci-app-wol is not set
+          CONFIG_PACKAGE_luci-app-zerotier=y
+          CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y
+          # CONFIG_PACKAGE_luci-lib-fs is not set
+          # CONFIG_PACKAGE_microsocks is not set
+          # CONFIG_PACKAGE_nlbwmon is not set
+          # CONFIG_PACKAGE_pdnsd-alt is not set
+          # CONFIG_PACKAGE_shadowsocks-libev-ss-local is not set
+          # CONFIG_PACKAGE_shadowsocks-libev-ss-redir is not set
+          # CONFIG_PACKAGE_shadowsocksr-libev-alt is not set
+          # CONFIG_PACKAGE_shadowsocksr-libev-ssr-local is not set
+          # CONFIG_PACKAGE_simple-obfs is not set
+          CONFIG_PACKAGE_swap-utils=y
+          # CONFIG_PACKAGE_tcpping is not set
+          # CONFIG_PACKAGE_vlmcsd is not set
+          # CONFIG_PACKAGE_vsftpd-alt is not set
+          # CONFIG_PACKAGE_wget-ssl is not set
+          CONFIG_PACKAGE_zerotier=y
+          CONFIG_PACKAGE_zram-swap=y
+          # CONFIG_ATH10K-CT_LEDS is not set
+          CONFIG_PACKAGE_ddns-scripts=y
+          # CONFIG_PACKAGE_ddns-scripts_cloudflare.com-v4 is not set
+          # CONFIG_PACKAGE_ddns-scripts_freedns_42_pl is not set
+          # CONFIG_PACKAGE_ddns-scripts_godaddy.com-v1 is not set
+          # CONFIG_PACKAGE_ddns-scripts_no-ip_com is not set
+          # CONFIG_PACKAGE_ddns-scripts_nsupdate is not set
+          # CONFIG_PACKAGE_ddns-scripts_route53-v1 is not set
+          CONFIG_PACKAGE_kmod-nf-conntrack-netlink=y
+          # CONFIG_PACKAGE_libncurses-dev is not set
+          CONFIG_PACKAGE_miniupnpd=y
+          CONFIG_PACKAGE_openssl-util=y
+          CONFIG_PACKAGE_zlib=y
+          # CONFIG_PACKAGE_zlib-dev is not set
+          # CONFIG_ZLIB_OPTIMIZE_SPEED is not set
+          EOF
+          sed -i 's/^[ \t]*//g' ./.config
+          make defconfig
 
       - name: Make download
         run: |
@@ -69,32 +166,39 @@ jobs:
           du -h --max-depth=1 ./bin
 
       - name: Prepare artifact
-        run: find ./bin/targets/ -type d -name "packages" | xargs rm -rf {}
+        run: |
+          mkdir -p ./artifact/firmware
+          mkdir -p ./artifact/package
+          mkdir -p ./artifact/buildinfo
+          rm -rf $(find ./bin/targets/ -type d -name "packages")
+          cp -rf $(find ./bin/targets/ -type f) ./artifact/firmware/
+          cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
+          cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@master
+      - name: Deliver buildinfo
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_buildinfo
+          path: ./artifact/buildinfo/
+
+      - name: Deliver package
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_package
+          path: ./artifact/package/
+
+      - name: Deliver firmware
+        uses: actions/upload-artifact@v2
         with:
           name: OpenWrt_firmware
           path: ./bin/targets/
-
-      - name: Create release
-        if: github.event == 'push'
-        id: create_release
-        uses: actions/create-release@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false      
+  
 
       - name: Upload release asset
-        if: github.event == 'push'
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: github.event == 'release'
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/targets/*/*/
+          repo_token: ${{ secrets.YOURTOKEN }}
+          file: ./artifact/firmware/*
+          tag: ${{ github.ref }}
+          file_glob: true
